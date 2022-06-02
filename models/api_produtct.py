@@ -1,10 +1,11 @@
-from typing import List
+from typing import List, Dict
 from uuid import UUID
 from datetime import datetime
 
+PaginatedOrdersGroups = Dict[str, List['APIOrdersGroup']]
 
 class APIProduct:
-    id: UUID
+    product_id: UUID
     code: int
     search_uid: str
     price: int
@@ -13,7 +14,7 @@ class APIProduct:
     url_img: str
 
     def __init__(self, id: UUID, code: int, search_uid: str, price: int, count: int, title: str, url_img: str) -> None:
-        self.id = id
+        self.product_id = id
         self.code = code
         self.search_uid = search_uid
         self.price = price
@@ -43,8 +44,8 @@ class APIOrder:
     price: int
     products: List[APIProduct]
 
-    def __init__(self, id: UUID, date: datetime, price: int, products: List[APIProduct]) -> None:
-        self.id = id
+    def __init__(self, order_id: UUID, date: datetime, price: int, products: List[APIProduct]) -> None:
+        self.id = order_id
         self.type = type
         self.date = date
         self.price = price
@@ -56,24 +57,40 @@ class APIOrder:
         for item in json['products']:
             products.append(APIProduct.from_json(item))
         return APIOrder(
-            id=json['id'],
+            order_id=json['id'],
             date=json['date'],
             price=json['price'],
             products=products,
         )
 
 
-class APIOrders:
+class APIOrdersGroup:
     orders: List[APIOrder]
 
     def __init__(self, orders: List[APIOrder]) -> None:
         self.orders = orders
 
+    def get_products(self) -> List[APIProduct]:
+        products = []
+        for order in self.orders:
+            for product in order.products:
+                products.append(product)
+        return products
+
     @staticmethod
-    def from_json(json: list) -> 'APIOrders':
+    def get_products_from_paginated_groups(orders_groups: PaginatedOrdersGroups) -> List[APIProduct]:
+        products = []
+        for group_name in orders_groups:
+            groups_pages = orders_groups[group_name]
+            for group in groups_pages:
+                products.extend(group.get_products())
+        return products
+
+    @staticmethod
+    def from_json(json: list) -> 'APIOrdersGroup':
         orders = []
         for item in json:
             orders.append(APIOrder.from_json(item))
-        return APIOrders(
+        return APIOrdersGroup(
             orders=orders,
         )

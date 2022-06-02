@@ -1,16 +1,21 @@
 from requests.utils import dict_from_cookiejar
+from api.auth import AuthRepository
+from api.orders import OrdersRepository
+from api.products import ProductsRepository
 import requests as reqs
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 from selenium import webdriver
 from urllib.parse import unquote
 import re
-import models.api_produtct as api_product
+from models.api_produtct import APIOrdersGroup
 import models.api_microdata as api_microdata
 import csv
 
-driver = webdriver.Firefox()
+LOGIN = '197012008@mail.ru'
+PASSWORD = 'a12181218'
+CSV_HEADER = ['url', 'name', 'status', 'delta']
 
-driver.implicitly_wait(10)
+driver = webdriver.Firefox()
 
 # auth
 driver.get('https://dns-shop.ru/')
@@ -21,101 +26,38 @@ cookies_map = {}
 for cookie in cookies:
     cookies_map[cookie['name']] = cookie['value']
 
-m = MultipartEncoder({
-    'LoginPasswordAuthorizationLoadForm[login]': '197012008@mail.ru',
-    'LoginPasswordAuthorizationLoadForm[password]': 'a12181218',
-    'LoginPasswordAuthorizationLoadForm[token]': '',
-})
+# initialize repositories
+auth_repository = AuthRepository(user_agent, cookies_map)
+orders_repository = OrdersRepository(user_agent, cookies_map)
+products_repository = ProductsRepository(user_agent, cookies_map)
 
-resp_0 = reqs.post(
-        'https://www.dns-shop.ru/auth/auth/login-password-authorization/',
-        data=m,
-        cookies=cookies_map,
-        headers={
-            'accept': '*/*',
-            'user-agent': user_agent,
-            'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Content-Type': m.content_type,
-        }
-    )
+# login
+auth_repository.login(LOGIN, PASSWORD)
 
-cookies = dict_from_cookiejar(resp_0.cookies)
-for key in cookies:
-    cookies_map[key] = cookies[key]
-
-current_path_string = unquote(cookies_map['current_path'])
-city_id = re.findall(r'\"city\":\"(.*?)\"', current_path_string)[0]
-
-# get orders groups
-orders_groups = {}
-i = 1
-while True:
-    resp_1 = reqs.get(
-        f'https://restapi.dns-shop.ru/v1/profile-orders-get-list?page={i}&tab=all',
-        cookies=cookies_map,
-        headers={
-            'accept': '*/*',
-            'user-agent': user_agent,
-            'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-            'authaccesstoken': cookies_map['auth_access_token'],
-            'cityid': city_id
-        }
-    )
-    resp1_json = resp_1.json()
-    groups_json_dict = resp1_json['data']['groups']
-
-    if groups_json_dict is None:
-        break
-
-    for group_name in groups_json_dict:
-        group = groups_json_dict[group_name]
-
-        if not (group_name in orders_groups):
-            orders_groups[group_name] = []
-
-        orders_groups[group_name].append(api_product.APIOrders.from_json(group))
-    i += 1
+# get user's orders
+orders_groups = orders_repository.get_all_my_orders()
+products = APIOrdersGroup.get_products_from_paginated_groups(orders_groups)
 
 # get actual prices
-actual_products_microdata = {}
-for group_name in orders_groups:
-    groups_pages = orders_groups[group_name]
-    for group in groups_pages:
-        for order in group.orders:
-            for product in order.products:
-                resp_2 = reqs.get(
-                    f'https://www.dns-shop.ru/product/microdata/{product.id}/',
-                    cookies=cookies_map,
-                    headers={
-                        'accept': '*/*',
-                        'user-agent': user_agent,
-                        'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-                    },
-                )
-                microdata = api_microdata.Microdata.from_json(resp_2.json())
-                actual_products_microdata[str(product.id)] = microdata
+actual_products_microdata = products_repository.get_microdata_from_products_groups(products)
 
-# convert to csv
+# save to csv
 with open('delta.csv', 'w', newline='') as f:
     writer = csv.writer(f, delimiter=';')
-    # header
-    header = ['url', 'name', 'status', 'delta']
-    writer.writerow(header)
+    # insert header
+    writer.writerow(CSV_HEADER)
 
-    for group_name in orders_groups:
-        groups_pages = orders_groups[group_name]
-        for group in groups_pages:
-            for order in group.orders:
-                for product in order.products:
-                    actual_product_microdata = actual_products_microdata[str(product.id)]
-                    row = [
-                        product.get_url(),
-                        product.title,
-                        actual_product_microdata.get_status(),
-                        actual_product_microdata.get_price() - product.price
-                        if actual_product_microdata.has_price()
-                        else -1,
-                    ]
-                    writer.writerow(row)
+    for product in products:
+        actual_product_microdata = actual_products_microdata[str(product.product_id)]
+        row = [
+            product.get_url(),
+            product.title,
+            actual_product_microdata.get_status(),
+            actual_product_microdata.get_price() - product.price
+            if actual_product_microdata.has_price()
+            else -1,
+        ]
+        writer.writerow(row)
+
 
 print('Готово!')
