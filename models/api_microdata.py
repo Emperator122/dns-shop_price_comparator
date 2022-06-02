@@ -111,6 +111,7 @@ class Microdata:
             value = 'В наличии'
         elif self.data.offers.offer_type == 'https://schema.org/OutOfStock':
             value = 'Нет в наличии'
+        return value
 
 
     @staticmethod

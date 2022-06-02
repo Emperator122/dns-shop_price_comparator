@@ -100,7 +100,7 @@ for group_name in orders_groups:
 with open('delta.csv', 'w', newline='') as f:
     writer = csv.writer(f, delimiter=';')
     # header
-    header = ['url', 'name', 'status','delta']
+    header = ['url', 'name', 'status', 'delta']
     writer.writerow(header)
 
     for group_name in orders_groups:
