@@ -107,9 +107,9 @@ class Microdata:
 
     def get_status(self):
         value = 'Не известно'
-        if self.data.offers.offer_type == 'https://schema.org/InStock':
+        if self.data.offers.availability == 'https://schema.org/InStock':
             value = 'В наличии'
-        elif self.data.offers.offer_type == 'https://schema.org/OutOfStock':
+        elif self.data.offers.availability == 'https://schema.org/OutOfStock':
             value = 'Нет в наличии'
         return value
 
