@@ -6,8 +6,8 @@ from models.produtct import OrdersGroup
 import csv
 
 # input data
-LOGIN = '197012008@mail.ru'
-PASSWORD = 'a12181218'
+LOGIN = '***'
+PASSWORD = '****'
 CSV_HEADER = ['url', 'name', 'status', 'delta']
 
 # make first main page render for getting cookies
