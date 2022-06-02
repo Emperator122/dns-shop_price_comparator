@@ -28,7 +28,7 @@ class PagesRenderer:
             cookies_map[cookie['name']] = cookie['value']
 
         # close browser
-        driver.close()
+        driver.quit()
 
         return PageRenderResult(cookies_map, user_agent)
 
