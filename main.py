@@ -1,11 +1,7 @@
 from requests.utils import dict_from_cookiejar
 import requests as reqs
 from requests_toolbelt.multipart.encoder import MultipartEncoder
-import http.client
-import selenium.webdriver.common.by as by
 from selenium import webdriver
-from selenium.webdriver.common.action_chains import ActionChains
-import time
 from urllib.parse import unquote
 import re
 import models.api_produtct as api_product
@@ -14,35 +10,38 @@ import csv
 
 driver = webdriver.Firefox()
 
-http.client._MAXHEADERS = 1000
 driver.implicitly_wait(10)
 
 # auth
 driver.get('https://dns-shop.ru/')
 user_agent = driver.execute_script("return navigator.userAgent;")
 
-profile_div = driver.find_element(by=by.By.XPATH, value="//div[contains(@class, 'user-profile__login')]")
-hover = ActionChains(driver).move_to_element(profile_div)
-hover.perform()
-time.sleep(2)
-
-driver.find_element(by=by.By.XPATH, value="//button[contains(@class, 'user-menu__button')]").click()
-driver.find_element(by=by.By.XPATH, value="//div[contains(@class, 'block-other-login-methods__password-caption')]") \
-    .click()
-driver.find_element(by=by.By.XPATH, value="//input[contains(@autocomplete, 'username')]") \
-    .send_keys('197012008@mail.ru')
-driver.find_element(by=by.By.XPATH, value="//input[contains(@autocomplete, 'current-password')]") \
-    .send_keys('a12181218')
-driver.find_element(by=by.By.XPATH, value="//div[contains(@class, 'form-entry-with-password__main-button')]") \
-    .click()
-
-# go to profile
-driver.get('https://www.dns-shop.ru/profile/order/all/')
-
 cookies = driver.get_cookies()
 cookies_map = {}
 for cookie in cookies:
     cookies_map[cookie['name']] = cookie['value']
+
+m = MultipartEncoder({
+    'LoginPasswordAuthorizationLoadForm[login]': '197012008@mail.ru',
+    'LoginPasswordAuthorizationLoadForm[password]': 'a12181218',
+    'LoginPasswordAuthorizationLoadForm[token]': '',
+})
+
+resp_0 = reqs.post(
+        'https://www.dns-shop.ru/auth/auth/login-password-authorization/',
+        data=m,
+        cookies=cookies_map,
+        headers={
+            'accept': '*/*',
+            'user-agent': user_agent,
+            'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Content-Type': m.content_type,
+        }
+    )
+
+cookies = dict_from_cookiejar(resp_0.cookies)
+for key in cookies:
+    cookies_map[key] = cookies[key]
 
 current_path_string = unquote(cookies_map['current_path'])
 city_id = re.findall(r'\"city\":\"(.*?)\"', current_path_string)[0]
