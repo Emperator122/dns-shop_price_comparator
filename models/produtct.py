@@ -4,7 +4,8 @@ from datetime import datetime
 
 PaginatedOrdersGroups = Dict[str, List['APIOrdersGroup']]
 
-class APIProduct:
+
+class Product:
     product_id: UUID
     code: int
     search_uid: str
@@ -13,8 +14,9 @@ class APIProduct:
     title: str
     url_img: str
 
-    def __init__(self, id: UUID, code: int, search_uid: str, price: int, count: int, title: str, url_img: str) -> None:
-        self.product_id = id
+    def __init__(self, product_id: UUID, code: int, search_uid: str, price: int, count: int, title: str, url_img: str) \
+            -> None:
+        self.product_id = product_id
         self.code = code
         self.search_uid = search_uid
         self.price = price
@@ -26,9 +28,9 @@ class APIProduct:
         return f'https://www.dns-shop.ru/product/{self.search_uid}'
 
     @staticmethod
-    def from_json(json: dict) -> 'APIProduct':
-        return APIProduct(
-            id=json['id'],
+    def from_json(json: dict) -> 'Product':
+        return Product(
+            product_id=json['id'],
             code=json['code'],
             search_uid=json['searchUid'],
             price=json['price'],
@@ -38,13 +40,13 @@ class APIProduct:
         )
 
 
-class APIOrder:
+class Order:
     id: UUID
     date: datetime
     price: int
-    products: List[APIProduct]
+    products: List[Product]
 
-    def __init__(self, order_id: UUID, date: datetime, price: int, products: List[APIProduct]) -> None:
+    def __init__(self, order_id: UUID, date: datetime, price: int, products: List[Product]) -> None:
         self.id = order_id
         self.type = type
         self.date = date
@@ -52,11 +54,11 @@ class APIOrder:
         self.products = products
 
     @staticmethod
-    def from_json(json: dict) -> 'APIOrder':
+    def from_json(json: dict) -> 'Order':
         products = []
         for item in json['products']:
-            products.append(APIProduct.from_json(item))
-        return APIOrder(
+            products.append(Product.from_json(item))
+        return Order(
             order_id=json['id'],
             date=json['date'],
             price=json['price'],
@@ -64,13 +66,13 @@ class APIOrder:
         )
 
 
-class APIOrdersGroup:
-    orders: List[APIOrder]
+class OrdersGroup:
+    orders: List[Order]
 
-    def __init__(self, orders: List[APIOrder]) -> None:
+    def __init__(self, orders: List[Order]) -> None:
         self.orders = orders
 
-    def get_products(self) -> List[APIProduct]:
+    def get_products(self) -> List[Product]:
         products = []
         for order in self.orders:
             for product in order.products:
@@ -78,7 +80,7 @@ class APIOrdersGroup:
         return products
 
     @staticmethod
-    def get_products_from_paginated_groups(orders_groups: PaginatedOrdersGroups) -> List[APIProduct]:
+    def get_products_from_paginated_groups(orders_groups: PaginatedOrdersGroups) -> List[Product]:
         products = []
         for group_name in orders_groups:
             groups_pages = orders_groups[group_name]
@@ -87,10 +89,10 @@ class APIOrdersGroup:
         return products
 
     @staticmethod
-    def from_json(json: list) -> 'APIOrdersGroup':
+    def from_json(json: list) -> 'OrdersGroup':
         orders = []
         for item in json:
-            orders.append(APIOrder.from_json(item))
-        return APIOrdersGroup(
+            orders.append(Order.from_json(item))
+        return OrdersGroup(
             orders=orders,
         )

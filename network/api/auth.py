@@ -1,16 +1,15 @@
 from typing import Dict
 import requests
 from requests_toolbelt.multipart.encoder import MultipartEncoder
-from requests.utils import dict_from_cookiejar
+from network.api.base import BaseRepository
 
 
-class AuthRepository:
+class AuthRepository(BaseRepository):
     user_agent: str
     cookies: Dict[str, str]
 
     def __init__(self, user_agent: str, cookies: Dict[str, str]):
-        self.user_agent = user_agent
-        self.cookies = cookies
+        super().__init__(user_agent, cookies)
 
     def login(self, username: str, password: str, update_cookies=True):
         m = MultipartEncoder({
@@ -30,8 +29,5 @@ class AuthRepository:
             }
         )
 
-        if not update_cookies:
-            return
-        cookies = dict_from_cookiejar(response.cookies)
-        for key in cookies:
-            self.cookies[key] = cookies[key]
+        if update_cookies:
+            self.update_cookies(response.cookies)

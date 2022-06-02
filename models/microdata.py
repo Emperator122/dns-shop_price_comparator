@@ -113,7 +113,6 @@ class Microdata:
             value = 'Нет в наличии'
         return value
 
-
     @staticmethod
     def from_json(json: dict) -> 'Microdata':
         return Microdata(

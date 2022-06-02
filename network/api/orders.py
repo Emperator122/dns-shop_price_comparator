@@ -1,11 +1,9 @@
 from typing import Dict
 import requests
-from requests.utils import dict_from_cookiejar
 from urllib.parse import unquote
-from requests.cookies import RequestsCookieJar
-from network.api.basei import BaseRepository
+from network.api.base import BaseRepository
 import re
-from models.api_produtct import APIOrdersGroup, PaginatedOrdersGroups
+from models.produtct import OrdersGroup, PaginatedOrdersGroups
 
 
 class OrdersRepository(BaseRepository):
@@ -38,7 +36,7 @@ class OrdersRepository(BaseRepository):
             i += 1
         return orders_groups
 
-    def get_my_orders(self, page: int, update_cookies: bool = False) -> Dict[str, APIOrdersGroup]:
+    def get_my_orders(self, page: int, update_cookies: bool = False) -> Dict[str, OrdersGroup]:
         assert 'current_path' in self.cookies, 'current_path cookie is required'
         assert 'auth_access_token' in self.cookies, 'auth_access_token cookie is required'
 
@@ -74,13 +72,8 @@ class OrdersRepository(BaseRepository):
         for group_name in groups_json_dict:
             group_json = groups_json_dict[group_name]
             # add current group to map
-            orders_groups[group_name] = APIOrdersGroup.from_json(group_json)
+            orders_groups[group_name] = OrdersGroup.from_json(group_json)
 
         if update_cookies:
             self.update_cookies(response.cookies)
         return orders_groups
-
-    def update_cookies(self, cookies: RequestsCookieJar):
-        cookies = dict_from_cookiejar(cookies)
-        for key in cookies:
-            self.cookies[key] = cookies[key]

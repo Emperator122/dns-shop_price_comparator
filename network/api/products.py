@@ -1,21 +1,19 @@
 from typing import Dict, List
 import requests
 from uuid import UUID
-from requests.utils import dict_from_cookiejar
-from models.api_microdata import Microdata
-from models.api_produtct import APIProduct
-from requests.cookies import RequestsCookieJar
+from models.microdata import Microdata
+from models.produtct import Product
+from network.api.base import BaseRepository
 
 
-class ProductsRepository:
+class ProductsRepository(BaseRepository):
     user_agent: str
     cookies: Dict[str, str]
 
     def __init__(self, user_agent: str, cookies: Dict[str, str]):
-        self.user_agent = user_agent
-        self.cookies = cookies
+        super().__init__(user_agent, cookies)
 
-    def get_microdata_from_products_groups(self, products: List[APIProduct],
+    def get_microdata_from_products_groups(self, products: List[Product],
                                            update_cookies: bool = False):
         products_microdata = {}
         for product in products:
@@ -43,8 +41,3 @@ class ProductsRepository:
             self.update_cookies(response.cookies)
 
         return microdata
-
-    def update_cookies(self, cookies: RequestsCookieJar):
-        cookies = dict_from_cookiejar(cookies)
-        for key in cookies:
-            self.cookies[key] = cookies[key]
