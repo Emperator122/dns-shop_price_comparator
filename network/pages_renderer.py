@@ -42,8 +42,6 @@ class PagesRenderer:
             })
 
 
-
-
 class PageRenderResult:
     cookies: Cookies
     user_agent: str

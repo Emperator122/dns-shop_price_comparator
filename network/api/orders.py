@@ -1,19 +1,17 @@
-from typing import Dict, List
+from typing import Dict
 import requests
 from requests.utils import dict_from_cookiejar
 from urllib.parse import unquote
 from requests.cookies import RequestsCookieJar
+from network.api.basei import BaseRepository
 import re
 from models.api_produtct import APIOrdersGroup, PaginatedOrdersGroups
 
 
-class OrdersRepository:
-    user_agent: str
-    cookies: Dict[str, str]
+class OrdersRepository(BaseRepository):
 
     def __init__(self, user_agent: str, cookies: Dict[str, str]):
-        self.user_agent = user_agent
-        self.cookies = cookies
+        super().__init__(user_agent, cookies)
 
     def get_all_my_orders(self, update_cookies: bool = False) -> PaginatedOrdersGroups:
         # get orders groups
