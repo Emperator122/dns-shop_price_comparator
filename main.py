@@ -2,12 +2,14 @@ from requests.utils import dict_from_cookiejar
 import requests as reqs
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 import http.client
-from http.cookies import SimpleCookie
 import selenium.webdriver.common.by as by
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
-from models.product import Product
 import time
+from urllib.parse import unquote
+import re
+import models.api_produtct as api_product
+import models.api_microdata as api_microdata
 import csv
 
 driver = webdriver.Firefox()
@@ -17,6 +19,7 @@ driver.implicitly_wait(10)
 
 # auth
 driver.get('https://dns-shop.ru/')
+user_agent = driver.execute_script("return navigator.userAgent;")
 
 profile_div = driver.find_element(by=by.By.XPATH, value="//div[contains(@class, 'user-profile__login')]")
 hover = ActionChains(driver).move_to_element(profile_div)
@@ -36,65 +39,84 @@ driver.find_element(by=by.By.XPATH, value="//div[contains(@class, 'form-entry-wi
 # go to profile
 driver.get('https://www.dns-shop.ru/profile/order/all/')
 
-# load orders
+cookies = driver.get_cookies()
+cookies_map = {}
+for cookie in cookies:
+    cookies_map[cookie['name']] = cookie['value']
+
+current_path_string = unquote(cookies_map['current_path'])
+city_id = re.findall(r'\"city\":\"(.*?)\"', current_path_string)[0]
+
+# get orders groups
+orders_groups = {}
+i = 1
 while True:
-    time.sleep(1)
+    resp_1 = reqs.get(
+        f'https://restapi.dns-shop.ru/v1/profile-orders-get-list?page={i}&tab=all',
+        cookies=cookies_map,
+        headers={
+            'accept': '*/*',
+            'user-agent': user_agent,
+            'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+            'authaccesstoken': cookies_map['auth_access_token'],
+            'cityid': city_id
+        }
+    )
+    resp1_json = resp_1.json()
+    groups_json_dict = resp1_json['data']['groups']
 
-    next_buttons = driver.find_elements(by=by.By.XPATH,
-                                        value="//div[contains(@class, 'order-list-pagination__show-more')]")
-    if len(next_buttons) == 0:
+    if groups_json_dict is None:
         break
-    next_buttons[0].click()
 
-driver.implicitly_wait(1)
+    for group_name in groups_json_dict:
+        group = groups_json_dict[group_name]
 
-# open spoilers
-flipped_elements = driver.find_elements(by=by.By.XPATH,
-                                        value="//img[contains(@class, 'order-header__hide-button-image_flipped')]")
-driver.implicitly_wait(10)
+        if not (group_name in orders_groups):
+            orders_groups[group_name] = []
 
-for element in flipped_elements:
-    element.click()
+        orders_groups[group_name].append(api_product.APIOrders.from_json(group))
+    i += 1
 
-# load products
-products_a = driver.find_elements(by=by.By.XPATH, value="//a[contains(@class, 'order-product__name')]")
-products_prices = driver.find_elements(by=by.By.XPATH,
-                                       value="//div[contains(@class, 'order-price-block__sub-info')]")
-time.sleep(1)
-old_products = Product.list_from_web_elements(products_a, products_prices)
-
-# load new prices
-new_products = []
-delta_products = []
-for product in old_products:
-    if product.url is None:
-        continue
-    driver.get(product.url)
-    product_price_element = driver.find_element(
-            by=by.By.XPATH,
-            value="//div[contains(@class, 'product-buy__price-wrap')]")
-    time.sleep(2)
-    # try to get price
-    split_price = product_price_element.text.split('₽')
-    product_price = -1
-    if len(split_price) >= 1:
-        try:
-            product_price = float(split_price[0].replace(' ', ''))
-        except ValueError:
-            pass
-    new_products.append(Product(product.name, product_price, product.url))
-    delta_products.append(Product(product.name, product_price if product_price == -1 else product_price-product.price,
-                                  product.url))
+# get actual prices
+actual_products_microdata = {}
+for group_name in orders_groups:
+    groups_pages = orders_groups[group_name]
+    for group in groups_pages:
+        for order in group.orders:
+            for product in order.products:
+                resp_2 = reqs.get(
+                    f'https://www.dns-shop.ru/product/microdata/{product.id}/',
+                    cookies=cookies_map,
+                    headers={
+                        'accept': '*/*',
+                        'user-agent': user_agent,
+                        'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+                    },
+                )
+                microdata = api_microdata.Microdata.from_json(resp_2.json())
+                actual_products_microdata[str(product.id)] = microdata
 
 # convert to csv
-with open('delta.csv', 'w') as f:
-    writer = csv.writer(f)
-
+with open('delta.csv', 'w', newline='') as f:
+    writer = csv.writer(f, delimiter=';')
     # header
-    header = ['url', 'name', 'delta']
+    header = ['url', 'name', 'status','delta']
     writer.writerow(header)
 
-    for product in delta_products:
-        writer.writerow([product.url, product.name, product.price])
+    for group_name in orders_groups:
+        groups_pages = orders_groups[group_name]
+        for group in groups_pages:
+            for order in group.orders:
+                for product in order.products:
+                    actual_product_microdata = actual_products_microdata[str(product.id)]
+                    row = [
+                        product.get_url(),
+                        product.title,
+                        actual_product_microdata.get_status(),
+                        actual_product_microdata.get_price() - product.price
+                        if actual_product_microdata.has_price()
+                        else -1,
+                    ]
+                    writer.writerow(row)
 
-print('lala')
+print('Готово!')
