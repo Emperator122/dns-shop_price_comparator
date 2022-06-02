@@ -1,35 +1,25 @@
-from requests.utils import dict_from_cookiejar
-from api.auth import AuthRepository
-from api.orders import OrdersRepository
-from api.products import ProductsRepository
-import requests as reqs
-from requests_toolbelt.multipart.encoder import MultipartEncoder
+from network.api.auth import AuthRepository
+from network.api.orders import OrdersRepository
+from network.api.products import ProductsRepository
+from network.pages_renderer import PagesRenderer
 from selenium import webdriver
-from urllib.parse import unquote
-import re
 from models.api_produtct import APIOrdersGroup
-import models.api_microdata as api_microdata
 import csv
 
 LOGIN = '197012008@mail.ru'
 PASSWORD = 'a12181218'
 CSV_HEADER = ['url', 'name', 'status', 'delta']
 
-driver = webdriver.Firefox()
-
-# auth
-driver.get('https://dns-shop.ru/')
-user_agent = driver.execute_script("return navigator.userAgent;")
-
-cookies = driver.get_cookies()
-cookies_map = {}
-for cookie in cookies:
-    cookies_map[cookie['name']] = cookie['value']
+# make first main page render for getting cookies
+page_renderer = PagesRenderer()
+render_result = page_renderer.render_page('https://dns-shop.ru/')
+user_agent = render_result.user_agent
+cookies = render_result.cookies
 
 # initialize repositories
-auth_repository = AuthRepository(user_agent, cookies_map)
-orders_repository = OrdersRepository(user_agent, cookies_map)
-products_repository = ProductsRepository(user_agent, cookies_map)
+auth_repository = AuthRepository(user_agent, cookies)
+orders_repository = OrdersRepository(user_agent, cookies)
+products_repository = ProductsRepository(user_agent, cookies)
 
 # login
 auth_repository.login(LOGIN, PASSWORD)
@@ -47,6 +37,7 @@ with open('delta.csv', 'w', newline='') as f:
     # insert header
     writer.writerow(CSV_HEADER)
 
+    # insert products info
     for product in products:
         actual_product_microdata = actual_products_microdata[str(product.product_id)]
         row = [
@@ -58,6 +49,3 @@ with open('delta.csv', 'w', newline='') as f:
             else -1,
         ]
         writer.writerow(row)
-
-
-print('Готово!')

@@ -3,7 +3,7 @@ import requests
 from uuid import UUID
 from requests.utils import dict_from_cookiejar
 from models.api_microdata import Microdata
-from models.api_produtct import APIProduct, PaginatedOrdersGroups
+from models.api_produtct import APIProduct
 from requests.cookies import RequestsCookieJar
 
 
