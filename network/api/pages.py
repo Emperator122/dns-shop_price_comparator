@@ -35,7 +35,7 @@ class PagesRepository(BaseRepository):
         js_code = part_of_code + '\r\n' + js_code + '\r\n' + 'document.cookie'
 
         # evaluate js
-        ipp_cookies_string = dukpy.evaljs(js_code)
+        ipp_cookies_string = dukpy.evaljs(js_code, user_agent=self.user_agent)
 
         # update cookies
         ipp_cookies = SimpleCookie()
