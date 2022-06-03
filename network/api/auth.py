@@ -5,8 +5,6 @@ from network.api.base import BaseRepository
 
 
 class AuthRepository(BaseRepository):
-    user_agent: str
-    cookies: Dict[str, str]
 
     def __init__(self, user_agent: str, cookies: Dict[str, str]):
         super().__init__(user_agent, cookies)

@@ -1,25 +1,29 @@
 from network.api.auth import AuthRepository
 from network.api.orders import OrdersRepository
 from network.api.products import ProductsRepository
-from network.pages_renderer import PagesRenderer
+from network.api.pages import PagesRepository
 from models.produtct import OrdersGroup
 import csv
 
 # input data
-LOGIN = '***'
-PASSWORD = '****'
+LOGIN = '*****'
+PASSWORD = '*****'
 CSV_HEADER = ['url', 'name', 'status', 'delta']
+USER_AGENT = \
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36'
 
-# make first main page render for getting cookies
-page_renderer = PagesRenderer()
-render_result = page_renderer.render_page('https://dns-shop.ru/')
-user_agent = render_result.user_agent
-cookies = render_result.cookies
+# session cookies
+cookies = {}
 
 # initialize repositories
-auth_repository = AuthRepository(user_agent, cookies)
-orders_repository = OrdersRepository(user_agent, cookies)
-products_repository = ProductsRepository(user_agent, cookies)
+auth_repository = AuthRepository(USER_AGENT, cookies)
+orders_repository = OrdersRepository(USER_AGENT, cookies)
+products_repository = ProductsRepository(USER_AGENT, cookies)
+page_repository = PagesRepository(USER_AGENT, cookies)
+
+# get main page cookies
+print('Loading main page cookies...')
+page_repository.get_main_page_cookies()
 
 # login
 print('Logining in...')
