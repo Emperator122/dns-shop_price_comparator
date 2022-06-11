@@ -1,17 +1,18 @@
-from typing import Dict, Optional
+from typing import Dict
 from network.api.base import BaseRepository
 import re
 from http.cookies import SimpleCookie
 import dukpy
 import requests
 import http.client
+from network.api.base_mainpage_cookies_loader import BaseMainPageCookiesLoader
 
-IPP_JS_PATH = 'resources/ipp_full.js'
+IPP_JS_PATH = 'resources/ipp.js'
 
 
-class PagesRepository(BaseRepository):
+class PagesRepository(BaseRepository, BaseMainPageCookiesLoader):
     def __init__(self, user_agent: str, cookies: Dict[str, str] = None):
-        super().__init__(user_agent, cookies)
+        super().__init__(user_agent=user_agent, cookies=cookies)
 
     def get_main_page_cookies(self):
         # first we get ipp cookies
@@ -19,6 +20,9 @@ class PagesRepository(BaseRepository):
         # then we load main page with ipp cookies
         # and get more cookies
         self.load_main_page()
+
+    def get_cookies(self):  # override BaseMainPageCookiesLoader's method
+        return self.get_main_page_cookies()
 
     def get_ipp_cookies(self):
         # send request to main page
